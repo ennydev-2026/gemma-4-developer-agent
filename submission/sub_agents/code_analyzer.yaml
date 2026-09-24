@@ -1,15 +1,12 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/google/adk-python/refs/heads/main/src/google/adk/agents/config_schemas/AgentConfig.json
-agent_class: LlmAgent
 name: code_analyzer
 model: gemma-4-31b-it-qat-w4a16-ct
-description: Read-only codebase analyst for localization and fix planning.
+description: >-
+  Read-only reliability auditor that ranks candidate code locations, checks
+  graph evidence, and recommends one discriminating probe.
 instruction: !include ../prompts/analyzer.md
 generate_content_config: !include ../configs/sampling.yaml
 tools:
-  - name: read_file
-  - name: run_command
-  - name: get_code_neighbors
-  - name: search_similar_code
-  - name: get_code_subgraph
-  - name: get_status
-  - name: load_skill_resource
+  - read_file
+  - get_code_neighbors
+  - search_similar_code
+  - get_code_subgraph
