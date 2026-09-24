@@ -1,0 +1,23 @@
+# Packaged Kaggle upload (regenerate with `make pack`)
+submission.zip
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Do not commit LoRA weights — add real adapters under submission/adapters/<name>/
+submission/adapters/*
+!submission/adapters/.gitkeep
+
+# Local competition dataset (download separately from Kaggle)
+data/
+*.tgz
+*.npz

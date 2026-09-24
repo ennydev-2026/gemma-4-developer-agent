@@ -1,0 +1,13 @@
+# Optional harness overrides (see HARNESS_README.md in the Kaggle dataset).
+# The competition allows per-task time limits here; omit keys to use harness defaults.
+
+# Wall-clock budget per benchmark instance (seconds). 129 tasks × ~45m ≈ fits 12h cap.
+per_task_timeout_seconds: 2700
+
+# Stop the agent loop after this many model turns on a single task.
+max_turns_per_task: 96
+
+# Context compaction when traces grow large (harness-supported; tune for your prompts).
+context_compaction:
+  enabled: true
+  trigger_token_estimate: 100000
