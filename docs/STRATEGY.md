@@ -1,64 +1,149 @@
-# Strategy notes — Gemma 4 Developer Agent
+# TRUST-SWE strategy
 
-This document captures a practical roadmap for improving the baseline in `submission/`. It is not prescriptive; the hidden test set rewards **reliable patching**, not prompt length.
+TRUST-SWE stands for **Tool-Reliability and Uncertainty-aware Search &
+Testing**. Its central claim is narrower than "graphs help coding agents":
 
-## Evaluation objective
+> Under a fixed inference budget, a local SWE agent resolves more issues when
+> it estimates tool reliability from observable evidence and changes navigation
+> mode instead of trusting empty, noisy, or incomplete retrieval.
 
-- **Metric:** fraction of instances where your submitted patch passes the issue’s verification tests (SWE-Bench-style pass/fail).
-- **Budget:** 12 hours total for all tasks in a run (sandbox setup counts; validation time does not).
-- **Output:** `submit_patch()` → unified `git diff` against the task baseline in `/workspace`.
+The competition score remains binary test resolution. Reliability reasoning is
+useful only if it improves held-out resolution rate or preserves it at lower
+cost.
 
-Optimize for **first-patch pass rate** under the time cap, not perfect analysis prose.
+## Why this formulation
 
-## Graph-first localization
+Graph-guided localization, hypothesis testing, ledgers, and adaptive budgets
+already exist independently. The competition also exposes graph tools directly.
+The open question is how a small local model should act when those tools are
+imperfect.
 
-The dataset ships AST call graphs and 256-d embeddings per symbol. On multi-thousand-line repos, linear search wastes turns.
+The public harness analysis reports failure modes worth reproducing against the
+downloaded official version:
 
-Suggested loop (also encoded in `prompts/system.md`):
+- `search_similar_code` resolves a code symbol before using its stored vector;
+- natural-language queries can return an empty result silently;
+- graph coverage may omit relevant definitions, including async code;
+- missing or damaged graph/embedding artifacts can yield empty or noisy output.
 
-1. `search_similar_code` with 2–4 query variants (error text, API names, stack symbols).
-2. `get_code_subgraph` on the top 3–8 nodes to see call chains.
-3. `get_code_neighbors` with `edge_type: calls` to expand one hop at a time.
-4. `read_file` with tight line ranges on nodes that appear in both semantic hits and graph paths.
+These observations are hypotheses until verified against the exact package
+version used for an experiment.
 
-Ablate: disable graph tools in a forked config and measure turn count / timeout rate on 10 training tasks.
+## Policy implemented in the starter
 
-## Sub-agent: `code_analyzer`
+The root prompt keeps a compact in-context state:
 
-The optional read-only analyzer (`sub_agents/code_analyzer.yaml`) trades extra model calls for better localization when the root agent loops.
+- exact issue anchors;
+- up to three candidate locations;
+- leading and alternative causes;
+- trust for graph, lexical, and runtime evidence;
+- low-information actions that must not be repeated;
+- the next discriminating probe.
 
-- Use when the root agent has run ≥3 tool rounds without a failing test repro.
-- Keep analyzer outputs structured (hypothesis / evidence / plan / verify).
-- Consider lowering `max_output_tokens` in a separate `configs/sampling_analyzer.yaml` if traces balloon.
+It chooses among four modes:
 
-## Skills
+1. **Exact:** issue-supplied paths, symbols, errors, or flags.
+2. **Lexical:** targeted grep and bounded file reads.
+3. **Graph:** exact symbol lookup followed by one-hop expansion.
+4. **Runtime:** minimal reproduction or focused test.
 
-`skills/repo_navigation` demonstrates the ADK skill layout (`SKILL.md`, `scripts/`, `resources/`).
+Two low-information actions force a mode change. Exact source and targeted
+runtime evidence override graph ranking.
 
-Ideas for additional skills (not included by default):
+## Analyzer escalation
 
-- `pytest_focus` — scripts that map failing tests to modules via `git grep` / `pytest --collect-only`.
-- `dependency_wheels` — notes on offline `pip` using `/wheels` from the dataset.
+`code_analyzer` is read-only and deliberately lacks shell and editing tools. It
+is useful only when:
 
-## Fine-tuning and LoRA
+- exact and lexical/graph localization still leave 2–5 candidates;
+- no candidate has high confidence;
+- enough budget remains to use its answer.
 
-Competition rules allow multiple LoRA adapters under `submission/adapters/<name>/`:
+The analyzer returns ranked targets, graph trust, a contradiction, and one next
+probe. `skip_summarization: true` prevents exploration traces from consuming
+root context.
 
-- **main_lora** on the root coder agent for tool-use and patch formatting.
-- **tool_lora** on read-only sub-agents for retrieval-heavy behavior.
+## Evaluation protocol
 
-Train on the public `tasks.jsonl` trajectories you collect from harness runs (tool traces + successful patches). Do not commit weights to git; add them locally before `make pack`.
+Use both:
 
-## `eval_config.yaml`
+- leave-one-repository-out folds;
+- chronological development/validation splits inside each repository.
 
-Tune `per_task_timeout_seconds` and `max_turns_per_task` after profiling on the training split. Aggressive timeouts free budget for hard tasks but increase `NO_PATCH` submissions.
+Never evaluate a task after its reference patch or oracle-derived trajectory
+was used for training.
 
-Align keys with **HARNESS_README.md** when the dataset schema differs from this starter.
+Minimum comparison:
 
-## Checklist before upload
+| Variant | Purpose |
+| --- | --- |
+| lexical-only | establishes performance without graph tools |
+| graph-first | measures unconditional graph dependence |
+| trust-prompt | current reliability-aware prompt, no adapter |
+| trust-router-lora | learned mode/tool choice |
+| trust-full | router plus conditional analyzer |
 
-- [ ] `model: gemma-4-31b-it-qat-w4a16-ct` on every agent YAML.
-- [ ] `make verify` passes (`agent.yaml` at zip root).
-- [ ] No path traversal in skill scripts; they run in the competition container.
-- [ ] Adapters are real safetensors + config, not placeholders.
-- [ ] Prompts fit within compaction limits (monitor `get_status()`).
+Report:
+
+- resolution rate and confidence interval;
+- localization Recall@5 where gold locations are available;
+- mean/p90 agent seconds, tool calls, and turns;
+- empty-patch, budget, loop, and regression failures;
+- recovery rate after an empty/noisy graph result;
+- results by repository and task category.
+
+Do not promote a component because of aggregate training performance. Require a
+gain in multiple held-out folds without exhausting the 12-hour budget.
+
+## Adapter plan
+
+Collect real harness trajectories first. Build examples for:
+
+- graph useful;
+- graph unavailable or misleading;
+- exact symbol absent;
+- lexical fallback successful;
+- runtime probe discriminating two causes;
+- premature editing and repeated-action failures.
+
+Training order:
+
+1. SFT for compact evidence-state updates and next-mode selection.
+2. Preference tuning between informative and wasteful next actions.
+3. SFT for end-to-end repair after routing behavior is stable.
+4. RL only if sparse pass/fail reward improves held-out tasks consistently.
+
+Store real PEFT artifacts in `submission/adapters/<name>/` only for packaging.
+Never commit model weights or placeholder adapter files.
+
+## Budget policy
+
+`eval_config.yaml` starts with six minutes, 40 tools, and 80 turns per task.
+These are safe initial constraints, not established optima. Tune from
+target-model traces and account for evaluator concurrency before changing them.
+
+Within a task:
+
+- check status at phase changes;
+- avoid full-suite tests;
+- stop exploring when fewer than five calls or roughly one minute remain;
+- submit the best evidence-backed patch rather than timing out with no diff.
+
+## Prior-art boundary
+
+The paper must compare directly with LocAgent/RepoGraph for graph navigation,
+CogniGent for graph-guided hypotheses, InspectCoder for active diagnosis, and
+budget/context systems such as EET or SWE-MeM. The proposed contribution is not
+any one component; it is calibrated routing between imperfect tools under a
+hard local-agent budget.
+
+## Submission checklist
+
+- [ ] Official compiler validates every YAML and include.
+- [ ] Every agent uses `gemma-4-31b-it-qat-w4a16-ct`.
+- [ ] `evaluation:` keys match the downloaded harness version.
+- [ ] Symbol-only graph queries and lexical fallbacks are present.
+- [ ] Analyzer remains read-only and conditionally invoked.
+- [ ] `make verify` places `agent.yaml` at zip root and omits `.gitkeep`.
+- [ ] Included adapters contain real config and safetensors files.
+- [ ] Held-out ablations support every claimed improvement.
