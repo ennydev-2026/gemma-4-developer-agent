@@ -1,8 +1,14 @@
-# Gemma 4 Developer Agent — competition starter
+# TRUST-SWE — Gemma 4 Developer Agent
 
-Starter repository for the Kaggle competition **[Google — The Gemma 4 Developer Agent Competition](https://www.kaggle.com/competitions/gemma-4-developer-agent)**.
+Reliability-aware starter for the Kaggle competition **[Google — The Gemma 4 Developer Agent Competition](https://www.kaggle.com/competitions/gemma-4-developer-agent)**.
 
-Post-train **Gemma 4** into an autonomous software engineering agent that navigates real Python codebases and submits patches for SWE-Bench-style issues. Submissions are declarative **ADK Agent Config** trees packaged as `submission.zip` with `agent.yaml` at the archive root.
+**TRUST-SWE** (Tool-Reliability and Uncertainty-aware Search & Testing)
+treats graph, lexical, and runtime tools as fallible sensors. It switches
+navigation modes when evidence is empty, noisy, or contradictory instead of
+blindly following a graph-first policy.
+
+The submission is a declarative ADK-style tree packaged as `submission.zip`
+with `agent.yaml` at the archive root.
 
 ## Prizes and timeline
 
@@ -37,6 +43,8 @@ README.md
 LICENSE                   # MIT
 Makefile
 scripts/pack_submission.sh
+scripts/validate_submission.py
+scripts/summarize_results.py
 docs/STRATEGY.md
 ```
 
@@ -52,18 +60,26 @@ The competition dataset includes `sample_submission/`, `tasks.jsonl`, graphs, em
 
 The evaluator exposes sandboxed tools only, including:
 
-`run_command`, `submit_patch`, `get_status`, `read_file`, `edit_file`, `write_file`, `get_code_neighbors`, `search_similar_code`, `get_code_subgraph`, plus skill helpers `run_skill_script` and `load_skill_resource`.
+`run_command`, `submit_patch`, `get_status`, `read_file`, `edit_file`,
+`write_file`, `get_code_neighbors`, `search_similar_code`, and
+`get_code_subgraph`.
 
 See the competition page and **HARNESS_README.md** for signatures, budgets, and sandbox layout (`/workspace`, `/wheels`, etc.).
+
+Important: in the released harness, `search_similar_code` should be queried
+with a resolvable function/class/module symbol, not a natural-language sentence.
+TRUST-SWE cross-checks graph output against source and falls back to lexical
+search when graph evidence is unreliable.
 
 ## Pack and submit
 
 From the repo root:
 
 ```bash
-chmod +x scripts/pack_submission.sh
+python3 -m pip install -r requirements-dev.txt
+make validate  # local schema and policy preflight
 make pack      # writes ./submission.zip
-make verify    # asserts agent.yaml is at zip root
+make verify    # rebuilds and inspects archive layout
 ```
 
 Upload `submission.zip` on the Kaggle competition **Submit Predictions** page.
@@ -79,15 +95,22 @@ submission.zip
 ```
 
 Not `submission/agent.yaml` nested inside an extra directory.
+`adapters/.gitkeep` is retained in Git but intentionally excluded from the zip.
 
 ## Local development (high level)
 
 1. Download the competition dataset from Kaggle (graphs, embeddings, snapshots, harness libraries).
-2. Iterate on `submission/agent.yaml`, prompts, skills, and optional adapters.
-3. Run the harness CLI described in **HARNESS_README.md** against `tasks.jsonl`.
-4. `make pack` and upload.
+2. Validate the submission with the official `adk_submission` compiler from the dataset; the local validator is a fast preflight, not a replacement.
+3. Run lexical-only, fixed graph-first, and TRUST-SWE variants on held-out tasks.
+4. Summarize harness JSONL with `python3 scripts/summarize_results.py task_results.jsonl`.
+5. Add real LoRA adapters only after held-out prompt ablations are stable.
+6. `make verify` and upload.
 
-Tuning ideas and ablation notes: [docs/STRATEGY.md](docs/STRATEGY.md).
+Research hypothesis, routing policy, and ablations:
+[docs/STRATEGY.md](docs/STRATEGY.md). Literature boundary:
+[docs/PRIOR_ART.md](docs/PRIOR_ART.md). Experiment conventions:
+[experiments/README.md](experiments/README.md). Adapter data contract:
+[training/README.md](training/README.md).
 
 ## License
 
