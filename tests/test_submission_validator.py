@@ -70,6 +70,24 @@ class SubmissionValidatorTests(unittest.TestCase):
             any("unsupported fields" in error for error in report.errors)
         )
 
+    def test_rejects_parent_include_even_when_it_resolves_inside_root(self) -> None:
+        temporary, target = self.copy_submission()
+        self.addCleanup(temporary.cleanup)
+        config = target / "agent.yaml"
+        config.write_text(
+            config.read_text(encoding="utf-8").replace(
+                "!include prompts/system.md",
+                "!include prompts/../prompts/system.md",
+            ),
+            encoding="utf-8",
+        )
+
+        report = Validator(target).run()
+
+        self.assertTrue(
+            any("!include path traversal" in error for error in report.errors)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

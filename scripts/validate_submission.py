@@ -142,6 +142,11 @@ class Validator:
     ) -> Any:
         if not isinstance(value, IncludeRef):
             return value
+        if ".." in str(value).replace("\\", "/").split("/"):
+            self.report.error(
+                f"!include path traversal in {self._relative(source)}: {value}"
+            )
+            return None
         candidate = self._inside_root(source.parent / str(value), "!include")
         if candidate is None:
             return None
@@ -226,6 +231,16 @@ class Validator:
         )
         if not isinstance(instruction, str) or not instruction.strip():
             self.report.error(f"{self._relative(path)} needs a non-empty instruction")
+        elif not is_root and path.name == "code_analyzer.yaml":
+            reference = self.root / "prompts" / "analyzer.md"
+            if reference.is_file():
+                expected = " ".join(reference.read_text(encoding="utf-8").split())
+                actual = " ".join(instruction.split())
+                if actual != expected:
+                    self.report.error(
+                        "inline code_analyzer instruction drifted from "
+                        "prompts/analyzer.md"
+                    )
 
         generation = self._resolve_include(
             data.get("generate_content_config"), path, expected_yaml=True
@@ -316,6 +331,9 @@ class Validator:
             config_path = config.get("config_path")
             if not isinstance(config_path, str) or not config_path:
                 self.report.error("agent_tool requires config_path")
+                continue
+            if ".." in config_path.replace("\\", "/").split("/"):
+                self.report.error(f"agent_tool path traversal: {config_path}")
                 continue
             target = self._inside_root(source.parent / config_path, "agent_tool")
             if target is not None:
