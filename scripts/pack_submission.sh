@@ -22,7 +22,8 @@ if [[ "${verify_only}" == "false" ]]; then
   rm -f "${OUT_ZIP}"
   # .gitkeep preserves the empty adapters directory in Git but is not an
   # accepted submission artifact. Directory entries are retained by zip.
-  (cd "${SUBMISSION_DIR}" && zip -qr "${OUT_ZIP}" . -x '*/.gitkeep' '.gitkeep')
+  (cd "${SUBMISSION_DIR}" && zip -qr "${OUT_ZIP}" . \
+    -x '*/.gitkeep' '.gitkeep' '*/__pycache__/*' '*/__pycache__/' '*.pyc')
   echo "wrote ${OUT_ZIP}"
 fi
 
