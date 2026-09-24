@@ -29,6 +29,6 @@ Load with `load_skill_resource` (path relative to this skill directory).
 
 ## Scripts
 
-- `scripts/repo_overview.sh` — prints top-level layout, git status, and recent commits.
+- `scripts/repo_overview.py` — prints top-level layout, git status, and recent commits.
 
 Run with `run_skill_script` (arguments are passed to the script).

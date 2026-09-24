@@ -88,6 +88,18 @@ class SubmissionValidatorTests(unittest.TestCase):
             any("!include path traversal" in error for error in report.errors)
         )
 
+    def test_rejects_shell_script_extension(self) -> None:
+        temporary, target = self.copy_submission()
+        self.addCleanup(temporary.cleanup)
+        script = target / "skills" / "repo_navigation" / "scripts" / "unsafe.sh"
+        script.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+        report = Validator(target).run()
+
+        self.assertTrue(
+            any("unsupported submission file extension" in error for error in report.errors)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

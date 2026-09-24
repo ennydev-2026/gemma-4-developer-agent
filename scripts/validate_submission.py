@@ -46,7 +46,6 @@ ALLOWED_EXTENSIONS = {
     ".md",
     ".py",
     ".safetensors",
-    ".sh",
     ".txt",
     ".yaml",
     ".yml",
