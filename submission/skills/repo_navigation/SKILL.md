@@ -1,24 +1,29 @@
 ---
 name: repo_navigation
 description: >-
-  Repository navigation helpers for SWE-Bench-style tasks — quick tree summaries,
-  git context, and notes on graph tool usage.
+  Reliability-aware repository navigation for choosing between exact, lexical,
+  graph, and runtime evidence without repeating low-value exploration.
 ---
 
 # repo_navigation
 
-Use this skill when you need a fast mental model of an unfamiliar repository.
+Use this skill when a target is not obvious or when graph and lexical evidence
+disagree. The goal is not to maximize retrieval; it is to identify the smallest
+next observation that can eliminate a candidate.
 
 ## When to use
 
-- At the start of a task, before deep reading.
-- After `search_similar_code` returns many candidates and you need to prioritize files.
-- When graph neighbor lists are long and you want a human-readable map.
+- At task start, to extract exact issue anchors.
+- When choosing whether graph lookup is trustworthy.
+- After two low-information actions in the same navigation mode.
+- Before escalating to the read-only analyzer.
 
 ## Resources
 
-- `resources/graph_tools.md` — cheat sheet for `get_code_neighbors` / `get_code_subgraph`.
-- `resources/workflow.md` — recommended navigation loop.
+- `resources/tool_reliability.md` — observable trust and fallback signals.
+- `resources/evidence_ledger.md` — compact in-context state contract.
+- `resources/graph_tools.md` — graph query constraints and failure modes.
+- `resources/workflow.md` — TRUST-SWE navigation loop.
 
 Load with `load_skill_resource` (path relative to this skill directory).
 

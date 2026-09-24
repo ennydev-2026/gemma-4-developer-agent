@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TRUST-SWE tool-decision example",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instance_id",
+    "anchors",
+    "mode",
+    "candidates",
+    "tool_trust",
+    "tried",
+    "next_action",
+    "label",
+    "resolved"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20
+    },
+    "mode": {
+      "enum": ["exact", "lexical", "graph", "runtime", "patch", "verify"]
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["location", "confidence", "support"],
+        "properties": {
+          "location": {
+            "type": "string"
+          },
+          "confidence": {
+            "enum": ["low", "medium", "high"]
+          },
+          "support": {
+            "type": "string"
+          },
+          "contradiction": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tool_trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["graph", "lexical", "runtime"],
+      "properties": {
+        "graph": {
+          "$ref": "#/$defs/trust"
+        },
+        "lexical": {
+          "$ref": "#/$defs/trust"
+        },
+        "runtime": {
+          "$ref": "#/$defs/trust"
+        }
+      }
+    },
+    "tried": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "remaining_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "remaining_tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "reason"],
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "label": {
+      "enum": [
+        "informative",
+        "redundant",
+        "misleading",
+        "failed_sensor",
+        "terminal"
+      ]
+    },
+    "resolved": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "reason"],
+      "properties": {
+        "level": {
+          "enum": ["low", "medium", "high"]
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
